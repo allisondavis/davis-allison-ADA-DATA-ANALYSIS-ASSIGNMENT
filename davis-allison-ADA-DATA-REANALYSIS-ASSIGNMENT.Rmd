@@ -9,8 +9,12 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE, warning = TRUE,message = TRUE,comment = "##",prompt = FALSE,tidy = TRUE,tidy.opts = list(blank = FALSE,width.cutoff = 75),fig.path = "img/",fig.align = "center")
 ```
 ## Overview
-#### 
-
+#### Predation influences internal and external phenotypic variation across taxa. Brain size experiences high levels of variation both within and between species, and recent investigations consider predation's role in this variation. A larger brain size in high-predation habitats could influence the ability to thwart a predator while still maintaining social and survival task functioning; likewise, large brains in low-predation environments could indicate an organism's ability to devote energy into more complex social behaviors.Reddon et al. explore this brain variation in Trinidadian guppies (*Poecilia reticulata*). These populations experience both low predation in habitats prior to waterfalls, and high predation following waterfalls within the same river, making them a perfect system to study brain variation in relation to predation.
+  * I will be replicating the linear model analyses performed in this study using the raw data provided by the authors via Dryad Digital Repository.
+      - Analyses include data transformation (log transformed), linear model summary, and visualization of models and their residuals (assumptions check).
+      - Data available as .xlsx file with two tabs (field, lab), which were separately saved as .csv files. Each contained information on brain mass, standard length, sex, and habitat type; for further details, see below.
+      
+      
 ## Data visualization
 #### Getting the data:
 
@@ -118,15 +122,18 @@ head(d_l)
   * This relationship is determined using linear models, with standard length as a covariate. 
     - For field collections, river and river+predation were also included as factors.
   * Due to the significant difference in body size between sexes analyses are run separately for each sex.
-  * Assumptions for linear models (homoscedasticity and normality) tested by creating QQ plots of residuals.
+  * Assumptions for linear models (homoscedasticity and normality) tested by creating QQ plots of residuals (shown in visualization section).
 
 ```{r}
 #setting reference levels: predation (high-2), rivers (Aripo-2)
 d_f$pred <- relevel(as.factor(d_f$Predation.1N.2Y), ref="2")
 d_f$rivers <- relevel(as.factor(d_f$Rivers.1M.2A), ref = "2")
+d_f$pred.alt <- relevel(as.factor(d_f$Predation.1N.2Y), ref = "1")
+d_f$rivers.alt <- relevel(as.factor(d_f$Rivers.1M.2A), ref = "1")
 head(d_f)
 
 d_l$pred <- relevel(as.factor(d_l$Predation.1N.2Y), ref = "2")
+d_l$pred.alt <- relevel(as.factor(d_l$Predation.1N.2Y), ref = "1")
 head(d_l)
 
 #separating male and female data
@@ -138,7 +145,8 @@ lab_f <- filter(d_l, Sex.1M.2F =="2")
 
 ```
 
-#### Field analyses
+#### Field analyses:
+
   * Table 2: Estimates and SEs for linear model using log-transformed brain mass of wild-caught guppies.
 
 ```{r}
@@ -147,6 +155,7 @@ library(pixiedust)
 
 t2_m <- lm(data=Fld_m, F_brain ~ F_SL + pred*rivers)
 summary(t2_m)
+
 (T2_m <- broom::tidy(t2_m))
 
 t2_f <- lm(data=Fld_f, F_brain ~ F_SL + pred*rivers)
@@ -222,6 +231,7 @@ summary(t3_f)
   * Compare to table from paper:
 <img src="img/table_3.jpg" width="560px"/>
 
+#### Lab analyses:
 
   * Table 4: Estimates and SEs for linear model using log-transformed brain mass of lab-raised guppies.
 
@@ -305,4 +315,62 @@ summary (t5_f)
 <img src="img/table_5.jpg" width="463px"/>
 
 
+#### Visualization:
+
+  * Figure 1: displays relationship of brain mass relative to body size for each sex, river, and predation factor in wild-caught guppies.
+
+
+  * Figure 2: displays relationship of brain mass relative to body size for each sex and predation factor in lab-raised guppies.
+
+
+
+  * Tests for assumptions: QQplots of residuals
+  
+```{r}
+par(mfrow=c(1,2))
+# field males
+qqnorm(residuals(t2_m))
+qqline(residuals(t2_m))
+
+qqnorm(residuals(t3_m))
+qqline(residuals(t3_m))
+
+# field females
+qqnorm(residuals(t2_f))
+qqline(residuals(t2_f))
+
+qqnorm(residuals(t3_f))
+qqline(residuals(t3_f))
+
+#lab males
+qqnorm(residuals(t4_m))
+qqline(residuals(t4_m))
+
+qqnorm(residuals(t5_m))
+qqline(residuals(t5_m))
+
+#lab females
+qqnorm(residuals(t4_f))
+qqline(residuals(t4_f))
+
+qqnorm(residuals(t5_f))
+qqline(residuals(t5_f))
+
+```
+      - **Males, particularly lab-raised males, display normality whereas females stray from normality.**
+
+## Conclusions
+
+#### In accordance with Reddon et al., I conclude a significant effect of predation on brain mass of male, but not female, Trinidadian guppies.
+  * Despite this agreement in p-Value, I was unable to derive matching estimate and standard error values for every linear model. I believe this inconsistancy stems from their method of estimate calculations. They say the following in each table caption: 
+    
+    *Estimates represent the difference in log- transformed brain mass between the level of a factor (identified in parenthesis) and the reference levels for categorical factors and are mean- centred for covariates. The reference levels were high predation and Aripo River.* [Lab tables did not include river reference level.]
+      - I performed linear regressions reversing the reference levels (low and Marianne) to see if subtracting these estimates from original table estimates would create a matching value (calculations not shown); this did not give the desired effect.
+      - Further explanation or clarity in writing could alleviate this problem. 
+
+## Reference
+
+#### This reanalysis assignment is based off the following article:
+
+Reddon, AR, Chouinard‐Thuly, L, Leris, I, Reader, SM. Wild and laboratory exposure to cues of predation risk increases relative brain mass in male guppies. Funct Ecol. 2018; 32: 1847– 1856. https://doi.org/10.1111/1365-2435.13128
 
