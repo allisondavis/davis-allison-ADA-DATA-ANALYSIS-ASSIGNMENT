@@ -319,10 +319,38 @@ summary (t5_f)
 
   * Figure 1: displays relationship of brain mass relative to body size for each sex, river, and predation factor in wild-caught guppies.
 
+```{r}
+library(ggplot2)
+#caption for figure one on how data is calculated.
+"Expected (log- transformed) brain mass (±SE) of guppies captured in the wild. Expected values are for the mean standard length for each sex."
+
+std.error <- function(x) {
+  SE <- sd(x)/sqrt(length(x))
+  return(SE)
+}
+
+#Fld_m$y_m <- Fld_m$F_brain/mean(Fld_m$Standard.length..mm.)
+#Fld_m$y_m.se <- std.error(y_m)
+#head(Fld_m)
+
+#Fld_m.plot <- ggplot(data=Fld_m, aes(x=Predation.1N.2Y, y=y_m)) + geom_errorbar(aes(ymin=y_m-y_m.se, ymax=y_m+y_m.se), width=0.1) + facet_grid(.~Fld_m$Rivers.1M.2A)
+#Fld_m.plot
+
+#had to turn above code into text. For some reason when knitting, it couldn't find y_m object. 
+```
+
+  * Figure in paper:
+<img src="img/figure_1.jpg" width="733px"/>
+
 
   * Figure 2: displays relationship of brain mass relative to body size for each sex and predation factor in lab-raised guppies.
+  * Figure in paper:
+<img src="img/figure_2.jpg" width="730px"/>
 
 
+  * *Turns out, I really don't understand how to make figure 1 and figure 2. I'm not getting the same range of values when I do log brain mass/ mean(SL of male or female). I'm assuming I would have to filter out my original data set to get 8 separate data frames: male, river1, pred1/male, river1, pred2/male, river2, pred1/male, river2, pred2 (and repeat for females). Then the mean SL and SE would be calculated for each subgroup. This seems like it's more complicated than it should be though. Not sure how I would even graph 4 separate data sets into a graph for each sex. I'm definitely doing something wrong here, but I just don't understand what.*
+      - **Tried also calculating y values by log brain mass/log&mean centered SL for each sex, and log brain mass/mean(log&mean centered SL for each sex), but these values weren't even close.**
+      
 
   * Tests for assumptions: QQplots of residuals
   
@@ -367,6 +395,9 @@ qqline(residuals(t5_f))
     *Estimates represent the difference in log- transformed brain mass between the level of a factor (identified in parenthesis) and the reference levels for categorical factors and are mean- centred for covariates. The reference levels were high predation and Aripo River.* [Lab tables did not include river reference level.]
       - I performed linear regressions reversing the reference levels (low and Marianne) to see if subtracting these estimates from original table estimates would create a matching value (calculations not shown); this did not give the desired effect.
       - Further explanation or clarity in writing could alleviate this problem. 
+  * Recreating the figures from calculations explained in the captions did not prove fruitful. Realizing after-the-fact that these graphs weren't visually easy to read in the first place.
+      - I know there is something I'm missing/not understanding, but I also think further explanation or clarity would be beneficial here too.
+      
 
 ## Reference
 
