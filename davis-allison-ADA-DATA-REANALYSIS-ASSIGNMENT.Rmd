@@ -1,0 +1,293 @@
+---
+title: "davis-allison-ADA-DATA-REANALYSIS-ASSIGNMENT"
+author: "Allison Davis"
+date: "April 8, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = TRUE,message = TRUE,comment = "##",prompt = FALSE,tidy = TRUE,tidy.opts = list(blank = FALSE,width.cutoff = 75),fig.path = "img/",fig.align = "center")
+```
+## Overview
+#### 
+
+## Data visualization
+#### Getting the data:
+
+```{r}
+library(curl)
+
+f_field <- curl("https://raw.githubusercontent.com/allisondavis/davis-allison-ADA19-data_replication_pjt/master/Reddon-etal.2018_data_field.csv")
+d_f <- read.csv(f_field, header = TRUE, sep = ",", stringsAsFactors = TRUE)
+d_f$X.U.FEFF.Fish <- NULL #this column gave a number identity to each fish 
+  
+  #to make the column names a little nicer:
+colnames(d_f)[colnames(d_f)=="Predators..1...no..2...yes."] <- "Predation.1N.2Y"
+colnames(d_f)[colnames(d_f)=="Sex..1...M..2...F."] <- "Sex.1M.2F"
+colnames(d_f)[colnames(d_f)=="River..1...Marrianne..2...Aripo."] <- "Rivers.1M.2A"
+
+head(d_f)
+
+f_lab <- curl("https://raw.githubusercontent.com/allisondavis/davis-allison-ADA19-data_replication_pjt/master/Reddon-etal.2018_data_lab.csv")
+d_l <- read.csv(f_lab, header = TRUE, sep = ",", stringsAsFactors = TRUE)
+d_l$X.U.FEFF.Fish <- NULL #this column gave a number identity to each fish
+d_l$X <- NULL #this column only existed in R, not sure what it corresponded to in excel file
+
+  #to make the column names a little nicer:
+colnames(d_l)[colnames(d_l)=="Predators..1.no..2.yes."] <- "Predation.1N.2Y"
+colnames(d_l)[colnames(d_l)=="Sex..1...M..2...F."] <- "Sex.1M.2F"
+
+head(d_l)
+
+```
+
+#### Basic data summary:
+```{r}
+
+#wild fishes
+summary(d_f)
+
+F_pred.p <- d_f[d_f$Predation.1N.2Y == "2", ]
+sum(F_pred.p$Predation.1N.2Y) #number of fish in stress treatment (predator present)
+F_pred.a <- d_f[d_f$Predation.1N.2Y == "1", ]
+sum(F_pred.a$Predation.1N.2Y) #number of fish in calm treatment (predator absent)
+
+
+#laboratory fishes
+summary(d_l) #not sure why it says I have 74 NA's...I don't have any missing data for the fish and there's only 74
+L_pred.p <- d_l[d_l$Predation.1N.2Y == "2", ]
+sum(L_pred.p$Predation.1N.2Y) #number of fish in stress treatment (predator present)
+L_pred.a <- d_l[d_l$Predation.1N.2Y == "1", ]
+sum(L_pred.a$Predation.1N.2Y) #number of fish in calm treatment (predator absent)
+
+
+(d_f$pred <- relevel(as.factor(d_f$Predation.1N.2Y), ref="2"))
+
+```
+
+#### Male vs Female body size comparison:
+  * The paper compared male and female body size using a Welch's T Test. They found a significant difference in both wild and laboratory raised fishes, and therefore separated them in further analyses. 
+    - paper values (mean SL±SE):
+        * wild males = 12.77 ± 0.13 mm, wild females = 15.66 ± 0.30 mm; Welch’s t96.9 = 8.76, p < 0.001
+        * laboratory males = 14.11 ± 0.15 mm, laboratory females = 28.26 ± 0.45 mm; Welch’s t29.19 = 29.7, p < 0.001
+
+```{r}
+
+#wild fishes
+F_SL_m <- d_f$Standard.length..mm.[d_f$Sex.1M.2F=="1"]
+F_SL_f <- d_f$Standard.length..mm.[d_f$Sex.1M.2F=="2"]
+(F_SL_t <- t.test(x=F_SL_f, y=F_SL_m, mu=0, alternative = "two.sided", var.equal = FALSE)) #confirmed a significant difference between male and female standard length 
+   
+#lab fishes
+L_SL_m <- d_l$Standard.length..mm.[d_l$Sex.1M.2F=="1"]
+L_SL_f <- d_l$Standard.length..mm.[d_l$Sex.1M.2F=="2"]
+(L_SL_t <- t.test(x=L_SL_f, y=L_SL_m, mu=0, alternative = "two.sided", var.equal = FALSE)) #confirmed a significant difference between male and female standard length 
+    
+```
+
+#### Log transformations:
+  * the paper log-transformed brain mass and standard length. They then mean-centered standard length. 
+    - they don't report any specific values for this, but I will.
+
+```{r}
+library(dplyr)
+#wild fishes
+F_log_bm <- log(d_f$Brain.mass..mg.)
+d_f <- mutate(d_f, F_brain=F_log_bm)
+head(d_f)
+
+F_log_sl <- log(d_f$Standard.length..mm.)
+F_sl_mn <- mean(d_f$Standard.length..mm.)
+F_sl_mc <- F_log_sl - log(F_sl_mn)
+d_f <- mutate(d_f, F_SL=F_sl_mc)
+head(d_f)
+
+#lab fishes
+L_log_bm <- log(d_l$Brain.mass..mg.)
+d_l <- mutate(d_l, L_brain=L_log_bm)
+head(d_l)
+
+L_log_sl <- log(d_l$Standard.length..mm.)
+L_sl_mn <- mean(d_l$Standard.length..mm.)
+L_sl_mc <- L_log_sl - log(L_sl_mn)
+d_l <- mutate(d_l, L_SL=L_sl_mc)
+head(d_l)
+
+```
+
+## Analysis replication:
+  * The paper investigates the relationship of brain mass and body size with predation exposure in both wild-caught and lab-raised fish. 
+  * This relationship is determined using linear models, with standard length as a covariate. 
+    - For field collections, river and river+predation were also included as factors.
+  * Due to the significant difference in body size between sexes analyses are run separately for each sex.
+  * Assumptions for linear models (homoscedasticity and normality) tested by creating QQ plots of residuals.
+
+```{r}
+#setting reference levels: predation (high-2), rivers (Aripo-2)
+d_f$pred <- relevel(as.factor(d_f$Predation.1N.2Y), ref="2")
+d_f$rivers <- relevel(as.factor(d_f$Rivers.1M.2A), ref = "2")
+head(d_f)
+
+d_l$pred <- relevel(as.factor(d_l$Predation.1N.2Y), ref = "2")
+head(d_l)
+
+#separating male and female data
+Fld_m <- filter(d_f, Sex.1M.2F =="1")
+Fld_f <- filter(d_f, Sex.1M.2F=="2")
+
+lab_m <- filter(d_l, Sex.1M.2F =="1")
+lab_f <- filter(d_l, Sex.1M.2F =="2")
+
+```
+
+#### Field analyses
+  * Table 2: Estimates and SEs for linear model using log-transformed brain mass of wild-caught guppies.
+
+```{r}
+library(broom)
+library(pixiedust)
+
+t2_m <- lm(data=Fld_m, F_brain ~ F_SL + pred*rivers)
+summary(t2_m)
+(T2_m <- broom::tidy(t2_m))
+
+t2_f <- lm(data=Fld_f, F_brain ~ F_SL + pred*rivers)
+summary(t2_f)
+(T2_f <-broom::tidy(t2_f))
+
+(t2.m <- dust(t2_m, 
+              justify = "center",
+              caption = "Males(df=74)",
+              border_collapse = 'collapse') %>%
+  sprinkle_caption_number(FALSE) %>%
+  sprinkle(border="all") %>%
+  sprinkle(cols = "term",
+           replace=c("Intercept", "Standard Length", "Predation", "River", "PredationxRiver")) %>%
+  sprinkle_colnames("Parameter", "Estimate", "SE", "t-Value", "p-Value") %>%
+  sprinkle(rows = c(1,2), bold=TRUE) %>%
+  sprinkle(rows = c(1,3,5),bg = "gainsboro"))
+
+(t2.f <- dust(t2_f, 
+              justify = "center",
+              caption = "Females(df=67)",
+              border_collapse = 'collapse') %>%
+  sprinkle_caption_number(FALSE) %>%
+  sprinkle(border="all") %>%
+  sprinkle(cols = "term",
+           replace=c("Intercept", "Standard Length", "Predation", "River", "PredationxRiver")) %>%
+  sprinkle_colnames("Parameter", "Estimate", "SE", "t-Value", "p-Value") %>%
+  sprinkle(rows = c(1,2), bold=TRUE) %>%
+  sprinkle(rows = c(1,3,5),bg = "gainsboro"))
+
+```
+<img src="img/table_2.jpg" width="733px"/>
+
+  * Table 3: Estimates and SEs for linear model using log-transformed standard length of wild-caught guppies.
+
+```{r}
+t3_m <- lm(data = Fld_m, F_SL ~ pred*rivers)
+summary(t3_m)
+(T3_m <- broom::tidy(t3_m))
+
+t3_f <- lm(data = Fld_f, F_SL ~ pred*rivers)
+summary(t3_f)
+(T3_f <- broom::tidy(t3_f))
+
+(t3.m <- dust(t3_m, 
+              justify = "center",
+              caption = "Males(df=74)",
+              border_collapse = 'collapse') %>%
+  sprinkle_caption_number(FALSE) %>%
+  sprinkle(border="all") %>%
+  sprinkle(cols = "term",
+           replace=c("Intercept", "Predation", "River", "PredationxRiver")) %>%
+  sprinkle_colnames("Parameter", "Estimate", "SE", "t-Value", "p-Value") %>%
+  sprinkle(rows = c(2), bold=TRUE) %>%
+  sprinkle(rows = c(1,3),bg = "gainsboro"))
+
+(t3.f <- dust(t3_f, 
+              justify = "center",
+              caption = "Females(df=67)",
+              border_collapse = 'collapse') %>%
+  sprinkle_caption_number(FALSE) %>%
+  sprinkle(border="all") %>%
+  sprinkle(cols = "term",
+           replace=c("Intercept", "Predation", "River", "PredationxRiver")) %>%
+  sprinkle_colnames("Parameter", "Estimate", "SE", "t-Value", "p-Value") %>%
+  sprinkle(rows = c(1,3),bg = "gainsboro"))
+```
+  
+  * Table 4: Estimates and SEs for linear model using log-transformed brain mass of lab-raised guppies.
+
+```{r}
+t4_m <- lm(data = lab_m, L_brain ~ L_SL + pred)
+summary(t4_m)
+(T4_m <- broom::tidy(t4_m))
+
+t4_f <- lm(data = lab_f, L_brain ~ L_SL + pred)
+summary(t4_f)
+(T4_f <- broom::tidy(t4_f))
+
+(t4.m <- dust(t4_m, 
+              justify = "center",
+              caption = "Males(df=46)",
+              border_collapse = 'collapse') %>%
+  sprinkle_caption_number(FALSE) %>%
+  sprinkle(border="all") %>%
+  sprinkle(cols = "term",
+           replace=c("Intercept", "Standard Length", "Predation")) %>%
+  sprinkle_colnames("Parameter", "Estimate", "SE", "t-Value", "p-Value") %>%
+  sprinkle(rows = c(1,3), bold=TRUE) %>%
+  sprinkle(rows = c(1,3),bg = "gainsboro"))
+
+(t4.f <- dust(t4_f, 
+              justify = "center",
+              caption = "Females(df=21)",
+              border_collapse = 'collapse') %>%
+  sprinkle_caption_number(FALSE) %>%
+  sprinkle(border="all") %>%
+  sprinkle(cols = "term",
+           replace=c("Intercept", "Standard Length", "Predation")) %>%
+  sprinkle_colnames("Parameter", "Estimate", "SE", "t-Value", "p-Value") %>%
+  sprinkle(rows = c(1), bold=TRUE) %>%
+  sprinkle(rows = c(1,3),bg = "gainsboro"))
+```
+
+  * Table 6: Estimates and SEs for linear model using log-transformed standard length of lab-raised guppies.
+
+```{r}
+t5_m <- lm(data = lab_m, L_SL ~ pred)
+summary (t5_m)
+(T5_m <- broom::tidy(t5_m))
+
+t5_f <- lm(data = lab_f, L_SL ~ pred)
+summary (t5_f)
+(T5_f <- broom::tidy(t5_f))
+
+(t5.m <- dust(t5_m, 
+              justify = "center",
+              caption = "Males(df=46)",
+              border_collapse = 'collapse') %>%
+  sprinkle_caption_number(FALSE) %>%
+  sprinkle(border="all") %>%
+  sprinkle(cols = "term",
+           replace=c("Intercept", "Predation")) %>%
+  sprinkle_colnames("Parameter", "Estimate", "SE", "t-Value", "p-Value") %>%
+  sprinkle(rows = c(1,2), bold=TRUE) %>%
+  sprinkle(rows = c(1),bg = "gainsboro"))
+
+(t5.f <- dust(t5_f, 
+              justify = "center",
+              caption = "Females(df=21)",
+              border_collapse = 'collapse') %>%
+  sprinkle_caption_number(FALSE) %>%
+  sprinkle(border="all") %>%
+  sprinkle(cols = "term",
+           replace=c("Intercept", "Predation")) %>%
+  sprinkle_colnames("Parameter", "Estimate", "SE", "t-Value", "p-Value") %>%
+  sprinkle(rows = c(1), bold=TRUE) %>%
+  sprinkle(rows = c(1),bg = "gainsboro"))
+
+```
+
+
